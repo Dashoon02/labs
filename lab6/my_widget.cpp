@@ -1,0 +1,137 @@
+#include "my_widget.h"
+#include "ui_my_widget.h"
+
+#include <QLabel>
+#include <QSlider>
+#include <QScrollBar>
+#include <QSpinBox>
+#include <QHBoxLayout>
+
+My_Widget::My_Widget():QWidget()
+
+{
+   setFixedSize(1000, 500);
+   my_layout = new QVBoxLayout();
+   layout_widgets = new QHBoxLayout();
+   add_widgets = new QPushButton("add widget");
+   remove_widgets = new QPushButton("remove widget");
+
+
+   QHBoxLayout *layout_btn=new QHBoxLayout(); //????????? ?????????????? ??????????? ??? ?????????? ???????? ? ?????????????? ??????????
+
+   //?????????? ???? ?????? (add_widgets ? remove_widgets) ? ?????????????? ??????????? layout_btn ? ??????? ?????? addWidget:
+   layout_btn->addWidget(add_widgets);
+   layout_btn->addWidget(remove_widgets);
+
+   //???????????? ?????????? (connect) ????? ????????? (???? ?? ??????) ? ??????? (????????, ??????????? ??? ?????)
+   //? ?????????????? ?????? QObject::connect. ? ?????? ??????, ??? ??????? ?? ?????? add_widgets ?????????? ???? add_widget(),
+   //? ??? ??????? ?? ?????? remove_widgets ?????????? ???? remove_widget().
+   QObject::connect(add_widgets,SIGNAL(clicked()),this,SLOT(add_widget()));
+   QObject::connect(remove_widgets,SIGNAL(clicked()),this,SLOT(remove_widget()));
+
+   my_layout->addLayout(layout_btn);  //?????????? ??????????????? ???????????? layout_btn ? ?????? ??????????? my_layout
+   my_layout->addLayout(layout_widgets);  //?????????? ??? ?????? ???????????? ? ??????????? my_layout
+
+   setLayout(my_layout);    //????????? ???????????? my_layout ? ???????? ???????????? ??? ???????? ???????
+}
+
+void My_Widget::add_widget()
+{
+            if(widgetCounter%4==0)
+            {
+                QSlider *slider = new QSlider();
+                my_vector.push_back(slider);
+                connect_widgets(slider);
+                layout_widgets->addWidget(slider);
+            }
+            else if(widgetCounter%4==1)
+            {
+                QLabel *label = new QLabel("0");
+                my_vector.push_back(label);
+                connect_widgets(label);
+                layout_widgets->addWidget(label);
+            }
+            else if(widgetCounter%4==2)
+            {
+                QScrollBar *s_bar = new QScrollBar();
+                my_vector.push_back(s_bar);
+                connect_widgets(s_bar);
+                layout_widgets->addWidget(s_bar);
+            }
+            else if(widgetCounter%4==3)
+            {
+                QSpinBox *s_box = new QSpinBox();
+                my_vector.push_back(s_box);
+                connect_widgets(s_box);
+                layout_widgets->addWidget(s_box);
+            }
+        widgetCounter++; // ??????????? ??????? ????????
+    }
+
+
+
+void My_Widget::remove_widget()
+{
+   if(!my_vector.size())
+       return;
+   QWidget*w=my_vector[(my_vector.size())-1];
+   disconnect_widgets(w);
+   my_vector.erase(std::find( my_vector.begin(),  my_vector.end(), w));
+   layout_widgets->removeWidget(w);
+   delete w;
+   widgetCounter --;
+}
+
+
+void My_Widget::connect_widgets(QWidget* w)
+{
+    QString className = w->metaObject()->className();
+    if(className == "QLabel")
+    {
+        QLabel *label = static_cast<QLabel*>(w);
+        QObject::connect(this, &My_Widget::send_text, label, &QLabel::setText);
+    }
+    else if(className == "QScrollBar" || className == "QSlider")
+    {
+        QAbstractSlider* slider = qobject_cast<QAbstractSlider*>(w);
+        QObject::connect(this, &My_Widget::send_value, slider, &QAbstractSlider::setValue);
+        QObject::connect(slider, &QAbstractSlider::valueChanged, this, &My_Widget::change_value);
+    }
+    else if(className == "QSpinBox")
+    {
+        QSpinBox* spinBox = static_cast<QSpinBox*>(w);
+        QObject::connect(this, &My_Widget::send_value, spinBox, &QSpinBox::setValue);
+        QObject::connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &My_Widget::change_value);
+    }
+}
+
+void My_Widget::disconnect_widgets(QWidget* w)
+{
+    QString className = w->metaObject()->className();
+    if(className == "QLabel")
+    {
+        QLabel *label = static_cast<QLabel*>(w);
+        QObject::disconnect(this, &My_Widget::send_text, label, &QLabel::setText);
+    }
+    else if(className == "QScrollBar" || className == "QSlider")
+    {
+        QAbstractSlider* slider = qobject_cast<QAbstractSlider*>(w);
+        QObject::disconnect(this, &My_Widget::send_value, slider, &QAbstractSlider::setValue);
+        QObject::disconnect(slider, &QAbstractSlider::valueChanged, this, &My_Widget::change_value);
+    }
+    else if(className == "QSpinBox")
+    {
+        QSpinBox* spinBox = static_cast<QSpinBox*>(w);
+        QObject::disconnect(this, &My_Widget::send_value, spinBox, &QSpinBox::setValue);
+        QObject::disconnect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &My_Widget::change_value);
+    }
+}
+
+
+void My_Widget::change_value(int value) {
+ // this->value = value;
+  emit send_text(QString::number(value));
+  emit send_value(value);
+}
+
+
